@@ -1,30 +1,33 @@
 steps:
-  # 1. Build: Costruisce l'immagine Docker
+  # 1. Costruisce l'immagine (nota: usiamo europe-west12 per Torino)
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app'
-      - '.'
+    args: ['build', '-t', 'europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest', '.']
 
-  # 2. Push: Carica l'immagine su Artifact Registry
+  # 2. Carica l'immagine nel registro di Torino
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app'
+    args: ['push', 'europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest']
 
-  # 3. Deploy (SSH): Si collega alla VM e aggiorna il container
+  # 3. Deploy sulla VM (zona europe-west12-b)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
+    entrypoint: 'bash'
     args:
-      - 'compute'
-      - 'ssh'
-      - 'app-vm'
-      - '--zone=europe-west12-b'
-      - '--command'
+      - '-c'
       - |
-        docker stop my-app-container || true
-        docker rm my-app-container || true
-        gcloud auth configure-docker europe-west12-docker.pkg.dev --quiet
-        docker pull europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app
-        docker run -d --name my-app-container -p 80:3000 europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app
+        gcloud compute ssh app-vm --zone=europe-west12-b --command='
+          # Ferma il vecchio container
+          docker stop my-app-container || true
+          docker rm my-app-container || true
+          
+          # Configura Docker per scaricare da Torino
+          gcloud auth configure-docker europe-west12-docker.pkg.dev --quiet
+          
+          # Scarica la nuova immagine
+          docker pull europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
+          
+          # Avvia il nuovo container
+          docker run -d --name my-app-container -p 80:3000 europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
+        '
+
+# --- QUESTA È LA PARTE CHE RISOLVE L'ERRORE ROSSO ---
+options:
+  logging: CLOUD_LOGGING_ONLY
