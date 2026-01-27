@@ -7,19 +7,25 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest']
 
-  # 3. Deploy (Con il nome corretto preso dalla tua foto)
+  # 3. Deploy (Con utente specifico e SUDO)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "Tentativo di connessione alla VM instance-20260127-094140..."
-        gcloud compute ssh instance-20260127-094140 --zone=europe-west12-b --command='
-          docker stop my-app-container || true
-          docker rm my-app-container || true
+        echo "Connessione alla VM come utente devops..."
+        # Nota: ho aggiunto 'devops@' prima del nome della VM
+        gcloud compute ssh devops@instance-20260127-094140 --zone=europe-west12-b --command='
+          # Uso SUDO perché l utente devops non è amministratore
+          sudo docker stop my-app-container || true
+          sudo docker rm my-app-container || true
+          
+          # Configura Docker
           gcloud auth configure-docker europe-west12-docker.pkg.dev --quiet
-          docker pull europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
-          docker run -d --name my-app-container -p 80:3000 europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
+          
+          # Scarica e avvia con SUDO
+          sudo docker pull europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
+          sudo docker run -d --name my-app-container -p 80:3000 europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
         '
 
 options:
