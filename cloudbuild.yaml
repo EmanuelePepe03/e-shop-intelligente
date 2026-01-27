@@ -1,5 +1,5 @@
 steps:
-  # 1. Costruisce l'immagine Docker (usando il Dockerfile nella cartella)
+  # 1. Costruisce l'immagine Docker
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest', '.']
 
@@ -7,14 +7,14 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest']
 
-  # 3. Si collega alla VM e aggiorna il container
+  # 3. Deploy sulla TUA VM specifica
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        gcloud compute ssh app-vm --zone=europe-west12-b --command='
-          # Ferma il vecchio container se esiste
+        gcloud compute ssh instance-20260127-094140 --zone=europe-west12-b --command='
+          # Ferma il vecchio container
           docker stop my-app-container || true
           docker rm my-app-container || true
           
@@ -24,10 +24,9 @@ steps:
           # Scarica la nuova immagine
           docker pull europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
           
-          # Avvia il nuovo container sulla porta 3000
+          # Avvia il nuovo container
           docker run -d --name my-app-container -p 80:3000 europe-west12-docker.pkg.dev/$PROJECT_ID/my-repo/my-app:latest
         '
 
-# Questo risolve l'errore dei log rossi
 options:
   logging: CLOUD_LOGGING_ONLY
